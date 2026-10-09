@@ -1,0 +1,274 @@
+import Foundation
+import MESClientKit
+import MESConformance
+import MESCore
+import MESEngineKit
+import MockEngineCore
+@testable import PixelAgencyRun
+import Testing
+
+// The L1 test (Lite-PRD §9), at the model level: with only the mock engine, every Image operation runs end to end
+// through Lite's run workflow, with its controls entirely from descriptors. Plus the workflow's other duties:
+// progress, cancel, failures, use-as-input, masks, pairing, the working folder, the session's cleanup, and client
+// conformance through `lite-run`.
+
+func engineConfig(_ tweak: (inout EngineConfiguration) -> Void = { _ in }) -> EngineConfiguration {
+    let spool = FileManager.default.temporaryDirectory.appendingPathComponent("lite-test-\(UUID().uuidString)")
+    var c = EngineConfiguration(id: "eng_lite_test", name: "Lite Test Engine", implementationName: "mes-mock-engine",
+                                implementationVersion: "0.1.0", spoolDirectory: spool)
+    c.advertise = false
+    c.logLevel = .critical
+    tweak(&c)
+    return c
+}
+
+@MainActor
+func serve(_ config: EngineConfiguration, engine: MockImageEngine = MockImageEngine(), _ body: @MainActor (Int) async throws -> Void) async throws {
+    let server = MESEngineServer(engine: engine, configuration: config)
+    let (ports, continuation) = AsyncStream<Int>.makeStream()
+    let app = try await server.makeApplication { port in continuation.yield(port) }
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        group.addTask { try await app.runService() }
+        var it = ports.makeAsyncIterator()
+        guard let port = await it.next() else { return }
+        try await body(port)
+        group.cancelAll()
+    }
+}
+
+func fixture(_ data: Data, _ ext: String = "png") throws -> URL {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("lite-fixture-\(UUID().uuidString).\(ext)")
+    try data.write(to: url)
+    return url
+}
+
+@MainActor
+func session(_ port: Int, _ operation: String, log: SessionLog) async throws -> RunSession {
+    let engine = HTTPEngineConnection(baseURL: URL(string: "http://127.0.0.1:\(port)/mes/v0")!)
+    let info = try await engine.engineInfo()
+    let d = try #require(try await engine.operations().operations.first { $0.operation == operation })
+    let run = RunSession(engine: engine, engineInfo: info, descriptor: d, folder: log.folder)
+    log.add(run)
+    return run
+}
+
+/// Fills a run the way a person would: text in every text box, the fixture image or mask in every required slot.
+@MainActor
+func fillInputs(_ run: RunSession) throws {
+    for spec in run.form.textInputs { run.form.text[spec.name] = "a lighthouse at dusk" }
+    for spec in run.descriptor.inputs where spec.required {
+        switch spec.kind {
+        case .image: run.media[spec.name] = [MediaItem(file: try fixture(Fixtures.png(width: 64, height: 48)))]
+        case .mask: run.media[spec.name] = [MediaItem(file: try fixture(Fixtures.mask(width: 64, height: 48)))]
+        default: break
+        }
+    }
+}
+
+@Suite("Lite's run workflow (L1)", .serialized)
+@MainActor
+struct RunWorkflowTests {
+    @Test("Every Image operation of the mock runs end to end, controls from descriptors, results collected and confirmed")
+    func everyOperation() async throws {
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            let engine = HTTPEngineConnection(baseURL: URL(string: "http://127.0.0.1:\(port)/mes/v0")!)
+            let operations = try await engine.operations().operations.map(\.operation)
+            #expect(operations.count == 13)
+            for op in operations {
+                let run = try await session(port, op, log: log)
+                try fillInputs(run)
+                #expect(run.missingInputs.isEmpty && run.canRun, "\(op): \(run.missingInputs.map(\.name))")
+                await run.run()
+                #expect(run.phase == .finished, "\(op): \(run.phase)")
+                #expect(!run.results.isEmpty, "\(op) produced no results")
+                for result in run.results {
+                    #expect(FileManager.default.fileExists(atPath: result.file.path), "\(op): \(result.file.lastPathComponent) missing")
+                    #expect(result.provenance?.model.license.spdx == "Apache-2.0", "\(op): what happened shows the licence")
+                }
+                #expect(run.job?.state == .purged, "\(op): confirmed at once (Lite keeps no custody)")
+            }
+            #expect(log.runs.count == 13 && log.results.count >= 13)
+            let held = try await engine.jobs(state: .holding)
+            #expect(held.isEmpty, "nothing left on the engine")
+        }
+    }
+
+    @Test("Controls reach the engine: size, seed, quality and a model; what happened reports them")
+    func controls() async throws {
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            let run = try await session(port, "image.generate", log: log)
+            run.form.text["prompt"] = "a fox"
+            run.form.setValue(["width": 96, "height": 64], at: ["size"])
+            run.form.setValue(11, at: ["seed"])
+            run.form.setValue("best", at: ["quality"])
+            run.form.model = "mock"
+            await run.run()
+            let result = try #require(run.results.first)
+            #expect(result.output.width == 96 && result.output.height == 64)
+            #expect(result.provenance?.seed == 11 && result.effective["quality"] == "best")
+        }
+    }
+
+    @Test("Progress is live, and cancel releases the job (ended cancelled)")
+    func progressAndCancel() async throws {
+        try await serve(engineConfig(), engine: MockImageEngine(stepDelay: .milliseconds(300), steps: 20)) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            let run = try await session(port, "image.generate", log: log)
+            run.form.text["prompt"] = "slow"
+            run.start()
+            var sawProgress = false
+            for _ in 0..<50 where !sawProgress {
+                try await Task.sleep(for: .milliseconds(100))
+                if case .running(_, _, let fraction?, _) = run.phase, fraction > 0 { sawProgress = true }
+            }
+            #expect(sawProgress, "phase: \(run.phase)")
+            await run.cancel()
+            for _ in 0..<30 where run.job?.outcome != .cancelled {
+                try await Task.sleep(for: .milliseconds(100))
+                if let id = run.job?.id { _ = try? await run.engine.job(id, wait: 0) }
+            }
+            #expect(run.phase == .cancelled)
+            let engine = run.engine
+            let final = try await engine.job(try #require(run.job?.id), wait: 0)
+            #expect(final.outcome == .cancelled)
+        }
+    }
+
+    @Test("Failures are reported: a model the policy excludes, an engine refusal")
+    func failures() async throws {
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            let run = try await session(port, "image.generate", log: log)
+            run.form.text["prompt"] = "x"
+            run.form.model = "mock-research"
+            run.form.policy.license = .commercialUse
+            await run.run()
+            guard case .failed(let message) = run.phase else { Issue.record("expected failed, got \(run.phase)"); return }
+            #expect(message.contains("policy_unmet"), "\(message)")
+        }
+    }
+
+    @Test("A result is used as the next operation's input without saving (generate → upscale)")
+    func useAsInput() async throws {
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            let generate = try await session(port, "image.generate", log: log)
+            generate.form.text["prompt"] = "a lighthouse"
+            generate.form.setValue(["width": 64, "height": 48], at: ["size"])
+            await generate.run()
+            let upscale = try await session(port, "image.upscale", log: log)
+            upscale.media["image"] = [try #require(generate.results.first).asInput]
+            upscale.form.setValue(2, at: ["scale"])
+            await upscale.run()
+            #expect(upscale.results.first?.output.width == 128 && upscale.results.first?.output.height == 96)
+        }
+    }
+
+    @Test("Masks: brush strokes and a matte become 8-bit grey PNGs the engine accepts; fill keeps the unpainted pixels")
+    func masks() async throws {
+        var mask = MaskRaster(width: 64, height: 48)
+        mask.paint([.init(points: [CGPoint(x: 40, y: 0), CGPoint(x: 40, y: 47)], radius: 12)])
+        #expect(mask.value(40, 10) == 255 && mask.value(5, 10) == 0 && !mask.isEmpty)
+        let decoded = try DecodedImage(mask.png())
+        #expect(decoded.isGrey && decoded.bitsPerComponent == 8 && decoded.width == 64 && decoded.height == 48)
+        #expect(decoded.pixel(40, 5)[0] == 255 && decoded.pixel(5, 5)[0] == 0, "top-left origin, as the image")
+
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            // "Select subject": matte the image, take its mask.
+            let image = try fixture(Fixtures.png(width: 64, height: 48))
+            let matte = try await session(port, "image.matte", log: log)
+            matte.media["image"] = [MediaItem(file: image)]
+            await matte.run()
+            let matteMask = try #require(matte.results.first { $0.output.kind == .mask })
+            let fromMatte = try #require(MaskRaster(image: try Data(contentsOf: matteMask.file), width: 64, height: 48))
+            #expect(fromMatte.width == 64)
+
+            let fill = try await session(port, "image.fill", log: log)
+            fill.media["image"] = [MediaItem(file: image)]
+            fill.media["mask"] = [try mask.mediaItem(in: log.folder)]
+            fill.form.text["prompt"] = "sky"
+            await fill.run()
+            let out = try DecodedImage(try Data(contentsOf: try #require(fill.results.first).file))
+            let src = try DecodedImage(Fixtures.png(width: 64, height: 48))
+            #expect(out.pixel(5, 20) == src.pixel(5, 20), "an unpainted pixel is unchanged")
+        }
+    }
+
+    @Test("Pairing through the directory: the code, approval, then a pinned connection; forgetting unpairs")
+    func pairing() async throws {
+        let config = engineConfig { $0.mode = .paired; $0.pairingApproval = EngineConfiguration.approveAll }
+        try await serve(config) { port in
+            let defaults = UserDefaults(suiteName: "lite-test-\(UUID().uuidString)")!
+            let directory = EngineDirectory(credentials: MemoryCredentialStore(), clientName: "Lite Tests", defaults: defaults)
+            let entry = try await directory.add(url: URL(string: "https://localhost:\(port)/mes/v0")!)
+            #expect(entry.needsPairing && entry.name == "Lite Test Engine" && entry.profiles == ["image/0.1"])
+            await #expect(throws: MESClientError.self) { _ = try await directory.connect(entry) }
+            let pairing = try await directory.beginPairing(entry)
+            #expect(pairing.code.count == 6)
+            #expect(try await directory.completePairing(pairing, wait: 10))
+            let paired = try #require(directory.entries.first { $0.id == entry.id })
+            #expect(paired.isPaired && !paired.needsPairing)
+            let connection = try await directory.connect(paired)
+            #expect(try await connection.operations().operations.count == 13)
+            await directory.forget(paired)
+            #expect(directory.entries.isEmpty)
+            await #expect(throws: MESClientError.self) { _ = try await connection.operations() }
+        }
+    }
+
+    @Test("The working folder: a bookmark that resolves, and a missing folder reported rather than silent")
+    func workingFolder() throws {
+        let defaults = UserDefaults(suiteName: "lite-wf-\(UUID().uuidString)")!
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("lite-wf-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let wf = WorkingFolder(defaults: defaults)
+        #expect(wf.status == .notChosen)
+        try wf.choose(folder)
+        #expect(wf.url?.standardizedFileURL.path == folder.standardizedFileURL.path)
+        wf.stop()
+        try FileManager.default.removeItem(at: folder)
+        let again = WorkingFolder(defaults: defaults)
+        guard case .unavailable = again.status else { Issue.record("expected unavailable, got \(again.status)"); return }
+    }
+
+    @Test("Saving never overwrites; the session's folder goes when the session ends")
+    func savingAndCleanup() async throws {
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            let run = try await session(port, "image.generate", log: log)
+            run.form.text["prompt"] = "x"
+            await run.run()
+            let result = try #require(run.results.first)
+            let destination = FileManager.default.temporaryDirectory.appendingPathComponent("lite-save-\(UUID().uuidString)", isDirectory: true)
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            let date = Date(timeIntervalSince1970: 1_800_000_000)
+            let a = try ResultExporter.save(result, to: destination, date: date)
+            let b = try ResultExporter.save(result, to: destination, date: date)
+            #expect(a != b && a.lastPathComponent.hasPrefix("generate-") && b.lastPathComponent.contains(" 2."))
+            #expect(FileManager.default.fileExists(atPath: log.folder.path))
+            log.clear()
+            #expect(!FileManager.default.fileExists(atPath: log.folder.path) && log.runs.isEmpty)
+            #expect(FileManager.default.fileExists(atPath: a.path), "saved files stay")
+        }
+    }
+
+    @Test("Client conformance (LITE-14): lite-run, which drives RunSession, passes every CLIENT test")
+    func clientConformance() async throws {
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let liteRun = repo.appendingPathComponent(".build/debug/lite-run").path
+        try #require(FileManager.default.isExecutableFile(atPath: liteRun), "build lite-run first (swift build --product lite-run)")
+        let report = await ClientSuite.run(client: .command(
+            "\(liteRun) --engine {url} --operation image.generate --text prompt={prompt} --param 'size={\"width\":64,\"height\":48}' --out {out}"))
+        #expect(report.conforms, "\(report.results.filter { $0.status == .fail }.map { "\($0.id): \($0.detail ?? "")" })")
+        #expect(report.results.count == 11)
+    }
+}
