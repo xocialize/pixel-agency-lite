@@ -1,0 +1,290 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6E4A26E73E88A9CCF1EC6ED6 /* PixelAgencyRun in Frameworks */ = {isa = PBXBuildFile; productRef = A19BB16302046905CD3CE8EE /* PixelAgencyRun */; };
+		8AEBA6FD26FBDC3D33D0CD60 /* PixelAgencyRunUI in Frameworks */ = {isa = PBXBuildFile; productRef = F92B350C683B13433DD07272 /* PixelAgencyRunUI */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		BB295A00CA369234C7B12C99 /* Pixel Agency Lite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Pixel Agency Lite.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7B67AC7FC341BF5A144BEE68 /* Lite */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Lite;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		303947FCEF0C1EE713FF2E96 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6E4A26E73E88A9CCF1EC6ED6 /* PixelAgencyRun in Frameworks */,
+				8AEBA6FD26FBDC3D33D0CD60 /* PixelAgencyRunUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A547CE8A5204BBAC51E4DC98 = {
+			isa = PBXGroup;
+			children = (
+				7B67AC7FC341BF5A144BEE68 /* Lite */,
+				7070702E2763B48E9C3A3646 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7070702E2763B48E9C3A3646 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BB295A00CA369234C7B12C99 /* Pixel Agency Lite.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9D74E3676304B99E5E3F1C4B /* Pixel Agency Lite */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55C841A3CD7392C339DEF3A0 /* Build configuration list for PBXNativeTarget "Pixel Agency Lite" */;
+			buildPhases = (
+				DA14D67913AA0012BB891AD3 /* Sources */,
+				303947FCEF0C1EE713FF2E96 /* Frameworks */,
+				7044B8F8B03C90EB748E1DCC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7B67AC7FC341BF5A144BEE68 /* Lite */,
+			);
+			name = "Pixel Agency Lite";
+			packageProductDependencies = (
+				A19BB16302046905CD3CE8EE /* PixelAgencyRun */,
+				F92B350C683B13433DD07272 /* PixelAgencyRunUI */,
+			);
+			productName = "Pixel Agency Lite";
+			productReference = BB295A00CA369234C7B12C99 /* Pixel Agency Lite.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D9648E1F6090AA418F27CA39 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					9D74E3676304B99E5E3F1C4B = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 3A6CF75862FF64BF9ED907DC /* Build configuration list for PBXProject "Pixel Agency Lite" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A547CE8A5204BBAC51E4DC98;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				36411E27568BD31A8641408A /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7070702E2763B48E9C3A3646 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9D74E3676304B99E5E3F1C4B /* Pixel Agency Lite */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7044B8F8B03C90EB748E1DCC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DA14D67913AA0012BB891AD3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		DFED276DA16031483B97F5DE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AB7B363C618542B228143D24 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		CF52B11B1373BBCDE396ED46 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Support/PixelAgencyLite.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CFZS6RXUCP;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				ARCHS = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Pixel Agency Lite";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Dustin Nielson. Apache-2.0 licensed.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Pixel Agency Lite finds media engines on your network and sends them the images you choose to process.";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xocialize.pixelagency.lite;
+				PRODUCT_NAME = "Pixel Agency Lite";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		A2C5C89917CD5BA9864F6B8C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Support/PixelAgencyLite.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CFZS6RXUCP;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				ARCHS = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Pixel Agency Lite";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Dustin Nielson. Apache-2.0 licensed.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Pixel Agency Lite finds media engines on your network and sends them the images you choose to process.";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xocialize.pixelagency.lite;
+				PRODUCT_NAME = "Pixel Agency Lite";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3A6CF75862FF64BF9ED907DC /* Build configuration list for PBXProject "Pixel Agency Lite" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DFED276DA16031483B97F5DE /* Debug */,
+				AB7B363C618542B228143D24 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		55C841A3CD7392C339DEF3A0 /* Build configuration list for PBXNativeTarget "Pixel Agency Lite" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF52B11B1373BBCDE396ED46 /* Debug */,
+				A2C5C89917CD5BA9864F6B8C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		36411E27568BD31A8641408A /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A19BB16302046905CD3CE8EE /* PixelAgencyRun */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PixelAgencyRun;
+		};
+		F92B350C683B13433DD07272 /* PixelAgencyRunUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PixelAgencyRunUI;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = D9648E1F6090AA418F27CA39 /* Project object */;
+}

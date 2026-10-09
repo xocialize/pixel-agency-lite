@@ -30,9 +30,13 @@ let package = Package(
         ]),
         .target(name: "PixelAgencyRunUI", dependencies: [
             "PixelAgencyRun",
+            .product(name: "MESClientKit", package: "media-engine-spec"),
             .product(name: "MESFormsUI", package: "media-engine-spec"),
             .product(name: "DesignScaffold", package: "DesignScaffold"),
             .product(name: "DesignScaffoldControls", package: "DesignScaffold"),
+            .product(name: "DesignScaffoldMedia", package: "DesignScaffold"),
+            .product(name: "DesignScaffoldStatus", package: "DesignScaffold"),
+            .product(name: "DesignScaffoldWorkspace", package: "DesignScaffold"),
         ]),
         .executableTarget(name: "LiteRun", dependencies: [
             "PixelAgencyRun", .product(name: "ArgumentParser", package: "swift-argument-parser"),
