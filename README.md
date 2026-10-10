@@ -9,7 +9,8 @@ control it shows comes from the engine's own descriptors.
 > - **L1:** with only the MES mock engine, every Image operation runs end to end from Lite, and its controls come
 >   entirely from descriptors. Lite passes the MES client conformance suite through `lite-run`, the same workflow
 >   without a window.
-> - **L2:** Lite runs against the real Pixel Agency Image Engine with real models.
+> - **L2:** Lite runs against the real [Pixel Agency Image Engine](https://github.com/xocialize/pixel-agency-image-engine)
+>   with real models.
 >   - The headless workflow ran all 13 Image operations, including a research model named (Qwen-Image 2.1 Turbo).
 >   - The signed, sandboxed app was checked live: it found the engine over Bonjour, generated with Qwen-Image 2.1
 >     Turbo (stamped "may not be used commercially"), and carried the result into Select by points.
