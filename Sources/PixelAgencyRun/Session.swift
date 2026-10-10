@@ -65,11 +65,18 @@ public final class WorkingFolder {
 
     public private(set) var status: Status = .notChosen
     let defaults: UserDefaults
-    static let key = "PixelAgency.workingFolderBookmark"
+    /// The defaults key the bookmark is kept under. An app keeping several folders (Desktop: the working folder and
+    /// the models folder) uses one key each.
+    let key: String
+    /// The app's name, for messages.
+    let appName: String
+    public static let workingFolderKey = "PixelAgency.workingFolderBookmark"
     private var accessing: URL?
 
-    public init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = .standard, key: String = WorkingFolder.workingFolderKey, appName: String = "Pixel Agency Lite") {
         self.defaults = defaults
+        self.key = key
+        self.appName = appName
         resolve()
     }
 
@@ -77,12 +84,12 @@ public final class WorkingFolder {
 
     /// Resolves the bookmark and starts accessing the folder (APP-4).
     public func resolve() {
-        guard let data = defaults.data(forKey: Self.key) else { status = .notChosen; return }
+        guard let data = defaults.data(forKey: key) else { status = .notChosen; return }
         var stale = false
         do {
             let url = try URL(resolvingBookmarkData: data, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
             guard url.startAccessingSecurityScopedResource() || FileManager.default.isWritableFile(atPath: url.path) else {
-                status = .unavailable("Pixel Agency Lite can't open \(url.path) any more.")
+                status = .unavailable("\(appName) can't open \(url.path) any more.")
                 return
             }
             guard FileManager.default.fileExists(atPath: url.path) else {
@@ -113,7 +120,7 @@ public final class WorkingFolder {
 
     func store(_ url: URL) throws {
         let data = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
-        defaults.set(data, forKey: Self.key)
+        defaults.set(data, forKey: key)
     }
 }
 
