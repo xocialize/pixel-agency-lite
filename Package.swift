@@ -17,8 +17,8 @@ let package = Package(
         .executable(name: "lite-run", targets: ["LiteRun"]),
     ],
     dependencies: [
-        // The Media Engine Specification SDKs. A local checkout until media-engine-spec is published.
-        .package(path: "../media-engine-spec"),
+        // The Media Engine Specification SDKs.
+        .package(url: "https://github.com/xocialize/media-engine-spec.git", from: "0.1.0"),
         .package(url: "https://github.com/xocialize/DesignScaffold.git", from: "0.25.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],

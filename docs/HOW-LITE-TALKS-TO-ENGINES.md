@@ -1,6 +1,6 @@
 # How Lite talks to an engine
 
-Pixel Agency Lite is the reference client of the [Media Engine Specification](../../media-engine-spec/spec/base.md)
+Pixel Agency Lite is the reference client of the [Media Engine Specification](https://github.com/xocialize/media-engine-spec/blob/main/spec/base.md)
 (MES). This guide walks through every exchange Lite has with an engine, in the order they happen, with the code
 that does it and the part of the spec it follows. Read it with `Sources/PixelAgencyRun` open: that package is the
 whole engine path. The views in `PixelAgencyRunUI` only display it.

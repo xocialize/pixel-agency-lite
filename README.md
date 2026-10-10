@@ -2,21 +2,20 @@
 
 A small macOS app for using **media engines**: pick an engine on your network, choose an operation, set its controls,
 drop in an image, run it, and save the result. Lite is the reference client of the
-[Media Engine Specification (MES)](../media-engine-spec): everything it does goes through the open MES SDKs, and every
+[Media Engine Specification (MES)](https://github.com/xocialize/media-engine-spec): everything it does goes through the open MES SDKs, and every
 control it shows comes from the engine's own descriptors.
 
 > **Status: L2 complete** (Lite-PRD §9).
 > - **L1:** with only the MES mock engine, every Image operation runs end to end from Lite, and its controls come
 >   entirely from descriptors. Lite passes the MES client conformance suite through `lite-run`, the same workflow
 >   without a window.
-> - **L2:** Lite runs against the real [Pixel Agency Image Engine](../pixel-agency-image-engine) with real models.
+> - **L2:** Lite runs against the real Pixel Agency Image Engine with real models.
 >   - The headless workflow ran all 13 Image operations, including a research model named (Qwen-Image 2.1 Turbo).
 >   - The signed, sandboxed app was checked live: it found the engine over Bonjour, generated with Qwen-Image 2.1
 >     Turbo (stamped "may not be used commercially"), and carried the result into Select by points.
 >   - With the point picker, which is new in L2, SAM 2.1 selected the whole bicycle from three include points and
 >     one exclude.
-> - Video operations arrive with the Video profile (L3, after the image workflow, D-16). Nothing here is published
->   yet.
+> - Video operations arrive with the Video profile (L3, after the image workflow, D-16).
 
 ![Pixel Agency Lite running Generate on the Pixel Agency Image Engine (Z-Image Turbo), with what happened](docs/images/lite-image-engine.png)
 
@@ -33,7 +32,7 @@ control it shows comes from the engine's own descriptors.
 
 ## Building
 
-The MES SDKs come from a sibling checkout of `media-engine-spec` until it's published.
+The MES SDKs come from [media-engine-spec](https://github.com/xocialize/media-engine-spec) at a tag (0.1.x).
 
 ```bash
 swift test
@@ -45,17 +44,16 @@ The app (signed with your development team; see `App/Pixel Agency Lite.xcodeproj
 xcodebuild -project "App/Pixel Agency Lite.xcodeproj" -scheme "Pixel Agency Lite" -derivedDataPath build/DerivedData build
 ```
 
-To try it with real models, run the [Pixel Agency Image Engine](../pixel-agency-image-engine); Lite finds it on its
-own:
+Lite finds any MES engine on this Mac or your network on its own; one with real models is the Pixel Agency Image
+Engine. To try it without one, run the MES mock engine from a clone of
+[media-engine-spec](https://github.com/xocialize/media-engine-spec):
 
 ```bash
-swift run --package-path ../pixel-agency-image-engine pixel-agency-image-engine
+git clone https://github.com/xocialize/media-engine-spec.git
 ```
 
-To try it without a real engine, run the MES mock engine from the `media-engine-spec` checkout. Lite finds it on its own:
-
 ```bash
-swift run --package-path ../media-engine-spec mes-mock-engine --delay-ms 250
+swift run --package-path media-engine-spec mes-mock-engine --delay-ms 250
 ```
 
 ## Licence
