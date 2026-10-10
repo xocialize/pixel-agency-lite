@@ -5,18 +5,20 @@ drop in an image, run it, and save the result. Lite is the reference client of t
 [Media Engine Specification (MES)](../media-engine-spec): everything it does goes through the open MES SDKs, and every
 control it shows comes from the engine's own descriptors.
 
-> **Status: L1 complete; L2 under way** (Lite-PRD §9).
+> **Status: L2 complete** (Lite-PRD §9).
 > - **L1:** with only the MES mock engine, every Image operation runs end to end from Lite, and its controls come
 >   entirely from descriptors. Lite passes the MES client conformance suite through `lite-run`, the same workflow
->   without a window. The signed, sandboxed app was checked live against the mock.
-> - **L2:** Lite's run workflow ran all 13 Image operations against the real
->   [Pixel Agency Image Engine](../pixel-agency-image-engine) with real models, including a research model named
->   (Qwen-Image 2.1 Turbo). It ran through `lite-run`, the same `RunSession` the app uses. Data inputs are new:
->   a point picker for `image.segment`. Still to do: the in-app check against the real engine.
+>   without a window.
+> - **L2:** Lite runs against the real [Pixel Agency Image Engine](../pixel-agency-image-engine) with real models.
+>   - The headless workflow ran all 13 Image operations, including a research model named (Qwen-Image 2.1 Turbo).
+>   - The signed, sandboxed app was checked live: it found the engine over Bonjour, generated with Qwen-Image 2.1
+>     Turbo (stamped "may not be used commercially"), and carried the result into Select by points.
+>   - With the point picker, which is new in L2, SAM 2.1 selected the whole bicycle from three include points and
+>     one exclude.
 > - Video operations arrive with the Video profile (L3, after the image workflow, D-16). Nothing here is published
 >   yet.
 
-![Pixel Agency Lite running Generate on the MES mock engine](docs/images/lite-generate.png)
+![Pixel Agency Lite running Generate on the Pixel Agency Image Engine (Z-Image Turbo), with what happened](docs/images/lite-image-engine.png)
 
 ## Contents
 

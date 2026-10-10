@@ -108,6 +108,18 @@ struct RunWorkflowTests {
             #expect(run.draftRequest.inputs?["points"] == .one(.data(points)))
             await run.run()
             #expect(run.phase == .finished && run.results.first?.output.kind == .mask)
+
+            // Run Again keeps every input, data included.
+            let defaults = UserDefaults(suiteName: "lite-test-\(UUID().uuidString)")!
+            let directory = EngineDirectory(credentials: MemoryCredentialStore(), clientName: "Lite Tests", defaults: defaults)
+            let workflow = RunWorkflow(directory: directory, log: log)
+            await workflow.select(try await directory.add(url: URL(string: "http://127.0.0.1:\(port)/mes/v0")!))
+            workflow.choose(run.descriptor)
+            workflow.current?.media = run.media
+            workflow.current?.data["points"] = points
+            let first = workflow.current
+            workflow.again()
+            #expect(workflow.current !== first && workflow.current?.data["points"] == points)
         }
     }
 

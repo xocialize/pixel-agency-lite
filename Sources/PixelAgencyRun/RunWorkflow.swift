@@ -134,6 +134,7 @@ public final class RunWorkflow {
         choose(previous.descriptor)
         guard let next = current else { return }
         next.media = previous.media
+        next.data = previous.data
         next.form.text = previous.form.text
         next.form.model = previous.form.model
         next.form.policy = previous.form.policy
