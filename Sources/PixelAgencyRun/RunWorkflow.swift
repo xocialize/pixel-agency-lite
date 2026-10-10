@@ -28,6 +28,8 @@ public final class RunWorkflow {
     public var commercialOnlyByDefault = false
 
     private var connection: (any EngineConnection)?
+    /// Where new runs execute; nil runs them in their session (Lite). Desktop sets its ticket executor.
+    public weak var executor: (any RunExecutor)?
     /// A result waiting to become the next operation's input (LITE-12).
     public private(set) var carried: MediaItem?
 
@@ -105,6 +107,7 @@ public final class RunWorkflow {
     public func choose(_ descriptor: Descriptor) {
         guard let connection, let info else { return }
         let next = RunSession(engine: connection, engineInfo: info, descriptor: descriptor, folder: log.folder)
+        next.executor = executor
         next.form.policy.license = commercialOnlyByDefault ? .commercialUse : nil
         if let previous = current {
             for spec in descriptor.inputs where spec.kind != .text {
@@ -150,8 +153,11 @@ public final class RunWorkflow {
 
     /// Sends a result to the next operation (LITE-12). If the current run is still being edited and has an empty
     /// image slot, it goes there at once.
-    public func useAsInput(_ result: RunResult) {
-        let item = result.asInput
+    public func useAsInput(_ result: RunResult) { useAsInput(result.asInput) }
+
+    /// Puts a file into the next run (Desktop: a library asset, RUN-3): into the current run's first empty image slot
+    /// while it's being edited, otherwise carried to the next operation chosen.
+    public func useAsInput(_ item: MediaItem) {
         if let current, current.phase == .editing,
            let slot = current.descriptor.inputs.first(where: { $0.kind == .image && (current.media[$0.name] ?? []).isEmpty }) {
             current.media[slot.name] = [item]

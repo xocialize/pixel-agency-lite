@@ -31,6 +31,22 @@ control it shows comes from the engine's own descriptors.
 | `Tests/` | The L1 test, at the model level, against the mock engine; client conformance through `lite-run` |
 | [`docs/HOW-LITE-TALKS-TO-ENGINES.md`](docs/HOW-LITE-TALKS-TO-ENGINES.md) | **Start here:** every exchange Lite has with an engine, in order, with the code and the spec section for each (LITE-13) |
 
+## Embedding the run workflow
+
+Pixel Agency Desktop embeds these packages (LITE-16). Three hooks make that possible without forking them:
+
+- **An engine inside the app.** `EngineDirectory.addLocal(_:)` lists an in-process engine (MESInProcess) first, and
+  connects to it without the network. Desktop's built-in engine is one; Lite has none.
+- **Runs executed elsewhere.** Set `RunWorkflow.executor` to a `RunExecutor` and each run it starts is handed to the
+  executor, which reports progress and results back through the session's `report` methods. The views show the run
+  as they show any other. Desktop's executor turns each run into a durable ticket that stores results in its library
+  before confirming them.
+- **The views in pieces.** `RunEngineList`, `RunOperationList`, `RunSessionList`, `RunWorkflowCanvas`,
+  `RunWorkflowInspector` and `runWorkflowPairing(_:)` let an app compose the workflow into its own window.
+  `RunWorkflowView` is Lite's arrangement of them.
+
+`RunWorkflow.useAsInput(_:)` also takes a plain `MediaItem`, so an app can put its own files into a run.
+
 ## Building
 
 The MES SDKs come from [media-engine-spec](https://github.com/xocialize/media-engine-spec) at a tag (0.1.x).

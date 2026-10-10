@@ -46,6 +46,7 @@ let package = Package(
             .product(name: "MESEngineKit", package: "media-engine-spec"),
             .product(name: "MockEngineCore", package: "media-engine-spec"),
             .product(name: "MESConformance", package: "media-engine-spec"),
+            .product(name: "MESInProcess", package: "media-engine-spec"),
         ]),
     ]
 )

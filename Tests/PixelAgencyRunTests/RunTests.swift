@@ -3,6 +3,7 @@ import MESClientKit
 import MESConformance
 import MESCore
 import MESEngineKit
+import MESInProcess
 import MockEngineCore
 @testable import PixelAgencyRun
 import Testing
@@ -298,5 +299,114 @@ struct RunWorkflowTests {
             "\(liteRun) --engine {url} --operation image.generate --text prompt={prompt} --param 'size={\"width\":64,\"height\":48}' --out {out}"))
         #expect(report.conforms, "\(report.results.filter { $0.status == .fail }.map { "\($0.id): \($0.detail ?? "")" })")
         #expect(report.results.count == 11)
+    }
+}
+
+// MARK: - Embedding (Pixel Agency Desktop: a built-in engine, and runs executed as tickets)
+
+/// Runs a session's request itself, the way Desktop's ticket executor does, and records what it saw.
+@MainActor
+final class RecordingExecutor: RunExecutor {
+    var executed: [UUID] = []
+    var cancelled: [UUID] = []
+
+    func execute(_ session: RunSession) async {
+        executed.append(session.id)
+        session.report(.submitting)
+        do {
+            var inputs: [String: RequestInput] = [:]
+            for (name, items) in session.media {
+                inputs[name] = .one(try await session.engine.input(contentsOf: items[0].file, mediaType: items[0].mediaType,
+                                                                   inlineLimit: session.engineInfo.limits.maxInlineBytes))
+            }
+            let job = try await session.engine.submit(session.form.request(media: inputs), idempotencyKey: UUID().uuidString)
+            session.report(job: job)
+            session.report(.running(state: job.state, stage: nil, fraction: nil, message: nil))
+            for try await event in session.engine.events(job: job.id, after: 0) {
+                session.apply(event)
+                if event.type == .outputReady || event.type == .ended { break }
+            }
+            let final = try await session.engine.job(job.id, wait: 0)
+            session.report(.collecting)
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("lite-exec-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            var results: [RunResult] = []
+            for output in final.result?.outputs ?? [] {
+                let file = try await session.engine.download(job: job.id, output: output, to: folder.appendingPathComponent("\(output.index).png"))
+                results.append(RunResult(output: output, file: file, job: final))
+            }
+            session.report(results: results)
+            session.report(job: try await session.engine.confirm(job.id))
+            session.report(.finished)
+        } catch {
+            session.report(.failed("\(error)"))
+        }
+    }
+
+    func cancel(_ session: RunSession) async {
+        cancelled.append(session.id)
+        session.report(.cancelled)
+    }
+}
+
+// Part of the L1 suite: run concurrently with it, two engines' worth of work on the main actor can starve its timers.
+extension RunWorkflowTests {
+    @Test("A built-in engine lists first, needs no pairing, and runs operations without the network")
+    func builtIn() async throws {
+        let (folder, defaults) = (FileManager.default.temporaryDirectory.appendingPathComponent("lite-local-\(UUID().uuidString)"),
+                                  UserDefaults(suiteName: "lite-local-\(UUID().uuidString)")!)
+        let directory = EngineDirectory(credentials: MemoryCredentialStore(), clientName: "tests", defaults: defaults)
+        let local = try await InProcessEngine.start(engine: MockImageEngine(), configuration: engineConfig { $0.name = "Built-in" })
+        let entry = try await directory.addLocal(local)
+        #expect(entry.isBuiltIn && !entry.needsPairing && directory.entries.first?.id == entry.id)
+
+        let workflow = RunWorkflow(directory: directory, log: SessionLog(folder: folder))
+        defer { workflow.log.clear() }
+        await workflow.select(entry)
+        #expect(workflow.problem == nil && workflow.operations.count == 13)
+        workflow.choose(try #require(workflow.operations.first { $0.operation == "image.matte" }))
+        let run = try #require(workflow.current)
+        try fillInputs(run)
+        await run.run()
+        #expect(run.phase == .finished && !run.results.isEmpty)
+
+        directory.removeLocal(id: entry.id)
+        #expect(directory.entries.isEmpty)
+        await local.stop()
+    }
+
+    @Test("A workflow's executor runs its sessions; they report progress and results as their own runs do; cancel goes to it")
+    func executor() async throws {
+        try await serve(engineConfig()) { port in
+            let defaults = UserDefaults(suiteName: "lite-exec-\(UUID().uuidString)")!
+            let directory = EngineDirectory(credentials: MemoryCredentialStore(), clientName: "tests", defaults: defaults)
+            let entry = try await directory.add(url: URL(string: "http://127.0.0.1:\(port)/mes/v0")!)
+            let workflow = RunWorkflow(directory: directory, log: SessionLog())
+            defer { workflow.log.clear() }
+            let executor = RecordingExecutor()
+            workflow.executor = executor
+            await workflow.select(entry)
+            workflow.choose(try #require(workflow.operations.first { $0.operation == "image.upscale" }))
+            let run = try #require(workflow.current)
+            #expect(run.executor === executor)
+            try fillInputs(run)
+            workflow.start()
+            while run.phase != .finished, !(run.phase.isActive == false && run.phase != .editing) { try await Task.sleep(for: .milliseconds(20)) }
+            #expect(executor.executed == [run.id])
+            #expect(run.phase == .finished && run.results.count == 1 && run.job?.state == .purged)
+            #expect(run.startedAt != nil && run.finishedAt != nil)
+
+            workflow.again()
+            let next = try #require(workflow.current)
+            await next.cancel()
+            #expect(executor.cancelled == [next.id] && next.phase == .cancelled)
+
+            // A file from elsewhere (Desktop: a library asset) goes into the current run's empty image slot.
+            workflow.choose(try #require(workflow.operations.first { $0.operation == "image.matte" }))
+            workflow.current?.media = [:]
+            let item = MediaItem(file: try fixture(Fixtures.png(width: 32, height: 32)))
+            workflow.useAsInput(item)
+            #expect(workflow.current?.media["image"]?.first?.file == item.file)
+        }
     }
 }

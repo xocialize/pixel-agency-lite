@@ -45,8 +45,24 @@ public struct RunResult: Identifiable, Sendable, Hashable {
     public static func == (a: RunResult, b: RunResult) -> Bool { a.id == b.id }
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
+    public init(output: Output, file: URL, job: Job) {
+        self.output = output
+        self.file = file
+        self.job = job
+    }
+
     /// Use this result as the next operation's input (LITE-12), without saving it.
     public var asInput: MediaItem { MediaItem(file: file, mediaType: output.mediaType, name: "\(job.operation) result") }
+}
+
+/// Runs a session's job somewhere other than in the session itself. Pixel Agency Desktop runs each as a durable
+/// ticket (Desktop-PRD RUN-5) that stores the results in its library before confirming them; the executor reports the
+/// run's progress and results back through the session's `report` methods, so the views show it as they show any
+/// run. Lite has none: a session runs its own job.
+@MainActor
+public protocol RunExecutor: AnyObject {
+    func execute(_ session: RunSession) async
+    func cancel(_ session: RunSession) async
 }
 
 /// One run of one operation (LITE-4, LITE-6–8): the inputs, the controls (from the descriptor), the job while it runs,
@@ -92,6 +108,8 @@ public final class RunSession: Identifiable {
     public private(set) var finishedAt: Date?
     let folder: URL
     private var task: Task<Void, Never>?
+    /// Where the job runs; nil runs it here. Set before `start`.
+    public weak var executor: (any RunExecutor)?
 
     /// - Parameter folder: where collected outputs go until saved (the session log's folder).
     public init(engine: any EngineConnection, engineInfo: EngineInfo, descriptor: Descriptor, folder: URL) {
@@ -123,8 +141,33 @@ public final class RunSession: Identifiable {
     /// Starts the run in the background; `phase` follows it.
     public func start() {
         guard !phase.isActive else { return }
-        task = Task { await run() }
+        if let executor {
+            task = Task { await executor.execute(self) }
+        } else {
+            task = Task { await run() }
+        }
     }
+
+    // MARK: - Reporting (for executors)
+
+    /// What the run is doing now. Starting stamps `startedAt`; an end stamps `finishedAt`.
+    public func report(_ phase: Phase) {
+        if phase == .submitting {
+            startedAt = Date()
+            finishedAt = nil
+            results = []
+            preview = nil
+        }
+        self.phase = phase
+        switch phase {
+        case .finished, .failed, .cancelled: finishedAt = Date()
+        default: break
+        }
+    }
+
+    public func report(job: Job) { self.job = job }
+    public func report(preview: Data) { self.preview = preview }
+    public func report(results: [RunResult]) { self.results = results }
 
     /// Runs to the end. Never throws: the outcome is in `phase`.
     public func run() async {
@@ -183,12 +226,17 @@ public final class RunSession: Identifiable {
 
     /// Cancels the run: releases the job on the engine (Base §7.3), which ends it `cancelled`.
     public func cancel() async {
+        if let executor {
+            await executor.cancel(self)
+            return
+        }
         if let job, job.state != .purged { _ = try? await engine.release(job.id) }
         task?.cancel()
         if phase.isActive || phase == .editing { phase = .cancelled }
     }
 
-    func apply(_ event: Event) {
+    /// Updates the phase, preview and warnings from one job event (Base §11).
+    public func apply(_ event: Event) {
         switch event.type {
         case .state:
             let state = event.data["state"]?.stringValue.flatMap(JobState.init(rawValue:)) ?? .running

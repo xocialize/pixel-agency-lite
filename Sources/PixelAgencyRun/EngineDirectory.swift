@@ -22,6 +22,8 @@ public struct EngineEntry: Identifiable, Sendable, Hashable {
     public var isPaired: Bool
     public var isDiscovered: Bool
     public var isAdded: Bool
+    /// Runs inside this app (Pixel Agency Desktop's built-in engine), reached without the network.
+    public var isBuiltIn = false
 
     /// Paired mode needs a pairing before anything but the handshake works (Base §3.3).
     public var needsPairing: Bool { auth == .paired && !isPaired }
@@ -29,7 +31,7 @@ public struct EngineEntry: Identifiable, Sendable, Hashable {
     var discovered: DiscoveredEngine?
     public static func == (a: EngineEntry, b: EngineEntry) -> Bool {
         a.id == b.id && a.name == b.name && a.url == b.url && a.isPaired == b.isPaired && a.isDiscovered == b.isDiscovered
-            && a.load == b.load && a.profiles == b.profiles
+            && a.load == b.load && a.profiles == b.profiles && a.isBuiltIn == b.isBuiltIn
     }
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
@@ -46,6 +48,8 @@ public final class EngineDirectory {
     let defaults: UserDefaults
     private var found: [DiscoveredEngine] = []
     private var addedInfo: [URL: EngineInfo] = [:]
+    /// Engines running inside this app, by id.
+    private var local: [String: (connection: any EngineConnection, info: EngineInfo)] = [:]
     private var browsing: Task<Void, Never>?
 
     static let addedKey = "PixelAgency.addedEngines"
@@ -93,6 +97,22 @@ public final class EngineDirectory {
         return entries.first { $0.id == info.id }!
     }
 
+    /// Lists an engine that runs inside this app (MESInProcess: Pixel Agency Desktop's built-in engine, RUN-9). It
+    /// lists first, needs no pairing, and connects without the network. Lite has none.
+    @discardableResult
+    public func addLocal(_ connection: any EngineConnection) async throws -> EngineEntry {
+        let info = try await connection.engineInfo()
+        local[info.id] = (connection, info)
+        rebuild()
+        return entries.first { $0.id == info.id }!
+    }
+
+    /// Takes a built-in engine off the list (it is stopping).
+    public func removeLocal(id: String) {
+        local[id] = nil
+        rebuild()
+    }
+
     /// Forgets an added engine and any pairing with it (unpairing on the engine when reachable).
     public func forget(_ entry: EngineEntry) async {
         if let paired = credentials.pairings().first(where: { $0.engineID == entry.id }) {
@@ -106,8 +126,10 @@ public final class EngineDirectory {
 
     // MARK: - Connecting and pairing
 
-    /// A connection to `entry`: resolving a discovered engine's address, and using its pairing when paired.
-    public func connect(_ entry: EngineEntry) async throws -> HTTPEngineConnection {
+    /// A connection to `entry`: the engine itself when it runs in this app; otherwise resolving a discovered engine's
+    /// address, and using its pairing when paired.
+    public func connect(_ entry: EngineEntry) async throws -> any EngineConnection {
+        if let builtIn = local[entry.id] { return builtIn.connection }
         let url = try await address(of: entry)
         if let paired = credentials.pairings().first(where: { $0.engineID == entry.id }) {
             var current = paired
@@ -156,12 +178,22 @@ public final class EngineDirectory {
                 existing.isPaired = existing.isPaired || e.isPaired
                 existing.isDiscovered = existing.isDiscovered || e.isDiscovered
                 existing.isAdded = existing.isAdded || e.isAdded
+                existing.isBuiltIn = existing.isBuiltIn || e.isBuiltIn
                 existing.discovered = existing.discovered ?? e.discovered
                 byID[e.id] = existing
             } else {
                 byID[e.id] = e
                 order.append(e.id)
             }
+        }
+        for (_, engine) in local.sorted(by: { $0.key < $1.key }) {
+            let info = engine.info
+            var entry = EngineEntry(id: info.id, name: info.name, url: nil, auth: info.auth,
+                                    profiles: info.profiles.flatMap { p in p.versions.map { "\(p.id)/\($0)" } },
+                                    specVersions: info.baseVersions, version: info.implementation.version, load: nil,
+                                    isPaired: false, isDiscovered: false, isAdded: false)
+            entry.isBuiltIn = true
+            merge(entry)
         }
         for url in addedURLs {
             let info = addedInfo[url]
@@ -181,6 +213,7 @@ public final class EngineDirectory {
             if byID[p.engineID]?.url == nil && byID[p.engineID]?.discovered == nil { byID[p.engineID]?.url = p.baseURL }
         }
         entries = order.compactMap { byID[$0] }.sorted { a, b in
+            if a.isBuiltIn != b.isBuiltIn { return a.isBuiltIn }
             if a.isPaired != b.isPaired { return a.isPaired }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }

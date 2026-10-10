@@ -21,14 +21,45 @@ public struct RunWorkflowView: View {
         WorkspaceSplit {
             Sidebar(workflow: workflow)
         } center: {
-            Canvas(workflow: workflow, saveFolder: saveFolder)
+            RunWorkflowCanvas(workflow: workflow, saveFolder: saveFolder)
         } trailing: {
-            Inspector(workflow: workflow)
+            RunWorkflowInspector(workflow: workflow)
         }
-        .sheet(isPresented: Binding(get: { workflow.pairing != nil }, set: { if !$0 { workflow.cancelPairing() } })) {
+        .runWorkflowPairing(workflow)
+        .onAppear { workflow.directory.startBrowsing() }
+    }
+}
+
+// MARK: - Pieces an app embeds (Desktop composes them into its own shell)
+
+/// The middle of the workflow: inputs, progress and previews, results.
+public struct RunWorkflowCanvas: View {
+    @Bindable var workflow: RunWorkflow
+    let saveFolder: URL?
+
+    public init(workflow: RunWorkflow, saveFolder: URL?) {
+        self.workflow = workflow
+        self.saveFolder = saveFolder
+    }
+
+    public var body: some View { Canvas(workflow: workflow, saveFolder: saveFolder) }
+}
+
+/// The operation's controls, drawn from its descriptor, the run bar, and what happened.
+public struct RunWorkflowInspector: View {
+    @Bindable var workflow: RunWorkflow
+
+    public init(workflow: RunWorkflow) { self.workflow = workflow }
+
+    public var body: some View { Inspector(workflow: workflow) }
+}
+
+extension View {
+    /// Shows the pairing code while a pairing is in progress (Base §5).
+    public func runWorkflowPairing(_ workflow: RunWorkflow) -> some View {
+        sheet(isPresented: Binding(get: { workflow.pairing != nil }, set: { if !$0 { workflow.cancelPairing() } })) {
             if let pairing = workflow.pairing { PairingSheet(pairing: pairing) { workflow.cancelPairing() } }
         }
-        .onAppear { workflow.directory.startBrowsing() }
     }
 }
 
@@ -36,58 +67,118 @@ public struct RunWorkflowView: View {
 
 struct Sidebar: View {
     @Bindable var workflow: RunWorkflow
-    @State private var addingEngine = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Tokens.Space.l) {
-                VStack(alignment: .leading, spacing: Tokens.Space.xs) {
-                    SectionHeader("Engines") {
-                        Button { addingEngine = true } label: { Image(systemName: "plus") }
-                            .buttonStyle(.borderless).help("Add an engine by address")
-                    }
-                    if workflow.directory.entries.isEmpty {
-                        Text("Looking for engines on your network…")
-                            .font(Tokens.Font.caption).foregroundStyle(Tokens.Color.secondaryLabel)
-                    }
-                    ForEach(workflow.directory.entries) { entry in
-                        Button { Task { await workflow.select(entry) } } label: {
-                            EngineRow(entry: entry, selected: workflow.engine?.id == entry.id)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Forget") { Task { await workflow.directory.forget(entry) } }
-                        }
-                    }
-                }
-                if !workflow.operations.isEmpty {
-                    ForEach(workflow.groupedOperations, id: \.profile) { group in
-                        VStack(alignment: .leading, spacing: 2) {
-                            SectionHeader(group.profile)
-                            ForEach(group.operations, id: \.operation) { d in
-                                Button { workflow.choose(d) } label: {
-                                    OperationRow(descriptor: d, selected: workflow.current?.descriptor.operation == d.operation)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-                if !workflow.log.runs.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
-                        SectionHeader("This session", trailing: "\(workflow.log.runs.count)")
-                        ForEach(workflow.log.runs) { run in
-                            Button { workflow.show(run) } label: { SessionRow(run: run, selected: workflow.current === run) }
-                                .buttonStyle(.plain)
-                        }
-                        Text("Cleared when Lite quits. Save what you want to keep.")
-                            .font(Tokens.Font.caption).foregroundStyle(Tokens.Color.tertiaryLabel)
-                    }
-                }
+                RunEngineList(workflow: workflow)
+                RunOperationList(workflow: workflow)
+                RunSessionList(workflow: workflow, note: "Cleared when Lite quits. Save what you want to keep.")
             }
             .padding(Tokens.Space.m)
         }
+    }
+}
+
+/// The engines: built in, found on the network, added by address, paired (LITE-1, LITE-2).
+public struct RunEngineList: View {
+    @Bindable var workflow: RunWorkflow
+    /// Called after an engine is chosen (Desktop switches to the run stage).
+    let onSelect: () -> Void
+    @State private var addingEngine = false
+
+    public init(workflow: RunWorkflow, onSelect: @escaping () -> Void = {}) {
+        self.workflow = workflow
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: Tokens.Space.xs) {
+            SectionHeader("Engines") {
+                Button { addingEngine = true } label: { Image(systemName: "plus") }
+                    .buttonStyle(.borderless).help("Add an engine by address")
+            }
+            if workflow.directory.entries.isEmpty {
+                Text("Looking for engines on your network…")
+                    .font(Tokens.Font.caption).foregroundStyle(Tokens.Color.secondaryLabel)
+            }
+            ForEach(workflow.directory.entries) { entry in
+                Button {
+                    onSelect()
+                    Task { await workflow.select(entry) }
+                } label: {
+                    EngineRow(entry: entry, selected: workflow.engine?.id == entry.id)
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    if !entry.isBuiltIn { Button("Forget") { Task { await workflow.directory.forget(entry) } } }
+                }
+            }
+        }
         .sheet(isPresented: $addingEngine) { AddEngineSheet(workflow: workflow, isPresented: $addingEngine) }
+    }
+}
+
+/// The chosen engine's operations, by profile (LITE-3).
+public struct RunOperationList: View {
+    @Bindable var workflow: RunWorkflow
+    let onSelect: () -> Void
+
+    public init(workflow: RunWorkflow, onSelect: @escaping () -> Void = {}) {
+        self.workflow = workflow
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        if !workflow.operations.isEmpty {
+            ForEach(workflow.groupedOperations, id: \.profile) { group in
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionHeader(group.profile)
+                    ForEach(group.operations, id: \.operation) { d in
+                        Button {
+                            onSelect()
+                            workflow.choose(d)
+                        } label: {
+                            OperationRow(descriptor: d, selected: workflow.current?.descriptor.operation == d.operation)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// This session's runs.
+public struct RunSessionList: View {
+    @Bindable var workflow: RunWorkflow
+    let title: String
+    let note: String?
+    let onSelect: () -> Void
+
+    public init(workflow: RunWorkflow, title: String = "This session", note: String? = nil, onSelect: @escaping () -> Void = {}) {
+        self.workflow = workflow
+        self.title = title
+        self.note = note
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        if !workflow.log.runs.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                SectionHeader(title, trailing: "\(workflow.log.runs.count)")
+                ForEach(workflow.log.runs) { run in
+                    Button {
+                        onSelect()
+                        workflow.show(run)
+                    } label: { SessionRow(run: run, selected: workflow.current === run) }
+                        .buttonStyle(.plain)
+                }
+                if let note {
+                    Text(note).font(Tokens.Font.caption).foregroundStyle(Tokens.Color.tertiaryLabel)
+                }
+            }
+        }
     }
 }
 
@@ -111,7 +202,10 @@ struct EngineRow: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    var color: Color { entry.needsPairing ? Tokens.Color.degraded : entry.isDiscovered || entry.isPaired ? Tokens.Color.ready : Tokens.Color.tertiaryLabel }
+    var color: Color {
+        entry.needsPairing ? Tokens.Color.degraded
+            : entry.isBuiltIn || entry.isDiscovered || entry.isPaired ? Tokens.Color.ready : Tokens.Color.tertiaryLabel
+    }
 
     /// LITE-1: profiles, spec version, load and pairing state.
     var detail: String {
@@ -119,7 +213,7 @@ struct EngineRow: View {
         if !entry.profiles.isEmpty { parts.append(entry.profiles.joined(separator: ", ")) }
         if let v = entry.specVersions.first { parts.append("MES \(v)") }
         if let load = entry.load { parts.append("load \(load)") }
-        parts.append(entry.isPaired ? "paired" : entry.needsPairing ? "needs pairing" : entry.auth == .open ? "this Mac" : "")
+        parts.append(entry.isBuiltIn ? "built in" : entry.isPaired ? "paired" : entry.needsPairing ? "needs pairing" : entry.auth == .open ? "this Mac" : "")
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }

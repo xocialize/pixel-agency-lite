@@ -216,7 +216,14 @@ struct RunCanvas: View {
     }
 
     /// LITE-15: offered only when Pixel Agency Desktop is installed (Lite OQ-4).
-    static var desktopApp: URL? { NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.xocialize.pixelagency.desktop") }
+    static let desktopBundleID = "com.xocialize.pixelagency.desktop"
+
+    /// Pixel Agency Desktop, when it's installed and this isn't it (Desktop embeds this view; its results are already
+    /// in its library).
+    static var desktopApp: URL? {
+        guard Bundle.main.bundleIdentifier != desktopBundleID else { return nil }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: desktopBundleID)
+    }
 
     static func open(_ file: URL, in app: URL) {
         NSWorkspace.shared.open([file], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
