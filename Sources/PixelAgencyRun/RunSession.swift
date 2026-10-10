@@ -81,6 +81,8 @@ public final class RunSession: Identifiable {
     public let form: OperationFormModel
     /// Media inputs by input name.
     public var media: [String: [MediaItem]] = [:]
+    /// Data inputs by input name (e.g. `image.segment`'s `points`), sent inline as JSON (Base §8).
+    public var data: [String: JSONValue] = [:]
     public private(set) var phase: Phase = .editing
     public private(set) var job: Job?
     /// The latest preview the engine sent while running (`job.preview`), as image bytes.
@@ -102,16 +104,18 @@ public final class RunSession: Identifiable {
 
     /// Required inputs not yet given.
     public var missingInputs: [InputSpec] {
-        form.missingInputs(media: Set(media.filter { !$0.value.isEmpty }.keys))
+        form.missingInputs(media: Set(media.filter { !$0.value.isEmpty }.keys).union(data.keys))
     }
 
     public var canRun: Bool { !phase.isActive && missingInputs.isEmpty && form.issues.isEmpty }
 
     /// The request as it would be sent, with media shown as placeholders (for "show request" views).
     public var draftRequest: JobRequest {
-        form.request(media: media.mapValues { items in
+        var inputs: [String: RequestInput] = media.mapValues { items in
             items.count == 1 ? .one(.upload("<\(items[0].name)>")) : .many(items.map { .upload("<\($0.name)>") })
-        })
+        }
+        for (name, value) in data { inputs[name] = .one(.data(value)) }
+        return form.request(media: inputs)
     }
 
     // MARK: - Running
@@ -139,6 +143,7 @@ public final class RunSession: Identifiable {
                 }
                 inputs[name] = values.count == 1 ? .one(values[0]) : .many(values)
             }
+            for (name, value) in data { inputs[name] = .one(.data(value)) }
             // 2. Submit (Base §7.1) with an idempotency key, so a retry after `busy` can't make a second job.
             let submitted = try await engine.submit(form.request(media: inputs), idempotencyKey: UUID().uuidString)
             job = submitted

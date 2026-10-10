@@ -5,12 +5,16 @@ drop in an image, run it, and save the result. Lite is the reference client of t
 [Media Engine Specification (MES)](../media-engine-spec): everything it does goes through the open MES SDKs, and every
 control it shows comes from the engine's own descriptors.
 
-> **Status: L1 complete** (Lite-PRD §9). With only the MES mock engine, every Image operation runs end to end from
-> Lite, and its controls come entirely from descriptors. Video operations arrive with the Video profile (L3, after the
-> image workflow, D-16).
-> - Lite passes the MES client conformance suite through `lite-run`, the same workflow without a window.
-> - The signed, sandboxed app was checked live against the mock.
-> - Next: L2, Lite with the first real Image Engine (ENG R1). Nothing here is published yet.
+> **Status: L1 complete; L2 under way** (Lite-PRD §9).
+> - **L1:** with only the MES mock engine, every Image operation runs end to end from Lite, and its controls come
+>   entirely from descriptors. Lite passes the MES client conformance suite through `lite-run`, the same workflow
+>   without a window. The signed, sandboxed app was checked live against the mock.
+> - **L2:** Lite's run workflow ran all 13 Image operations against the real
+>   [Pixel Agency Image Engine](../pixel-agency-image-engine) with real models, including a research model named
+>   (Qwen-Image 2.1 Turbo). It ran through `lite-run`, the same `RunSession` the app uses. Data inputs are new:
+>   a point picker for `image.segment`. Still to do: the in-app check against the real engine.
+> - Video operations arrive with the Video profile (L3, after the image workflow, D-16). Nothing here is published
+>   yet.
 
 ![Pixel Agency Lite running Generate on the MES mock engine](docs/images/lite-generate.png)
 
@@ -37,6 +41,13 @@ The app (signed with your development team; see `App/Pixel Agency Lite.xcodeproj
 
 ```bash
 xcodebuild -project "App/Pixel Agency Lite.xcodeproj" -scheme "Pixel Agency Lite" -derivedDataPath build/DerivedData build
+```
+
+To try it with real models, run the [Pixel Agency Image Engine](../pixel-agency-image-engine); Lite finds it on its
+own:
+
+```bash
+swift run --package-path ../pixel-agency-image-engine pixel-agency-image-engine
 ```
 
 To try it without a real engine, run the MES mock engine from the `media-engine-spec` checkout. Lite finds it on its own:

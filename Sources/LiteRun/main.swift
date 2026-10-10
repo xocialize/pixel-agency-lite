@@ -19,6 +19,7 @@ struct LiteRun: AsyncParsableCommand {
     @Option(help: "The operation, e.g. image.generate.") var operation: String
     @Option(help: "A text input as name=value. Repeatable.") var text: [String] = []
     @Option(help: "A media input as name=path. Repeatable.") var file: [String] = []
+    @Option(help: "A data input as name=JSON (e.g. points for image.segment). Repeatable.") var data: [String] = []
     @Option(help: "A parameter as name=JSON (or a plain string). Repeatable.") var param: [String] = []
     @Option(help: "A model id from the descriptor.") var model: String?
     @Option(help: "A bearer token from pairing.") var token: String?
@@ -43,6 +44,13 @@ struct LiteRun: AsyncParsableCommand {
         for pair in file {
             let (name, path) = try Self.split(pair)
             run.media[name, default: []].append(MediaItem(file: URL(fileURLWithPath: (path as NSString).expandingTildeInPath)))
+        }
+        for pair in data {
+            let (name, value) = try Self.split(pair)
+            guard let json = try? MESJSON.decoder.decode(JSONValue.self, from: Data(value.utf8)) else {
+                throw ValidationError("--data \(name) isn't JSON.")
+            }
+            run.data[name] = json
         }
         for pair in param {
             let (name, value) = try Self.split(pair)

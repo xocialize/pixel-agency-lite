@@ -17,7 +17,7 @@ struct Inspector: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Tokens.Space.l) {
-                        OperationFormContent(form: run.form) { spec in MediaSlot(workflow: workflow, run: run, spec: spec) }
+                        OperationFormContent(form: run.form) { spec in InputSlot(workflow: workflow, run: run, spec: spec) }
                             .disabled(run.phase != .editing)
                         if run.phase == .finished, let result = run.results.first { WhatHappened(run: run, result: result) }
                     }
@@ -65,6 +65,17 @@ struct RunBar: View {
         }
         .padding(Tokens.Space.m)
         .background(.bar)
+    }
+}
+
+/// One non-text input: media, or data.
+struct InputSlot: View {
+    let workflow: RunWorkflow
+    @Bindable var run: RunSession
+    let spec: InputSpec
+
+    var body: some View {
+        if spec.kind == .data { DataSlot(run: run, spec: spec) } else { MediaSlot(workflow: workflow, run: run, spec: spec) }
     }
 }
 

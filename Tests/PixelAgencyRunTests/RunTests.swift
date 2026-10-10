@@ -95,6 +95,22 @@ struct RunWorkflowTests {
         }
     }
 
+    @Test("Data inputs: segment's points go inline as JSON, and count as given")
+    func dataInputs() async throws {
+        try await serve(engineConfig()) { port in
+            let log = SessionLog()
+            defer { log.clear() }
+            let run = try await session(port, "image.segment", log: log)
+            try fillInputs(run)
+            let points: JSONValue = [["x": 0.5, "y": 0.5, "label": "include"], ["x": 0.1, "y": 0.1, "label": "exclude"]]
+            run.data["points"] = points
+            #expect(run.missingInputs.isEmpty)
+            #expect(run.draftRequest.inputs?["points"] == .one(.data(points)))
+            await run.run()
+            #expect(run.phase == .finished && run.results.first?.output.kind == .mask)
+        }
+    }
+
     @Test("Controls reach the engine: size, seed, quality and a model; what happened reports them")
     func controls() async throws {
         try await serve(engineConfig()) { port in

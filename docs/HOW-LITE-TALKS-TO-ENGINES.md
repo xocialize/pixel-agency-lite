@@ -90,6 +90,10 @@ costs a `304`.
 - **Masks** follow Image §1.6: 8-bit grey, the image's size, white where the engine may change pixels.
   - `MaskRaster` paints brush strokes into exactly that.
   - "Select subject" runs `image.matte` on the engine and takes its mask (`RunWorkflow.selectSubject(of:)`).
+- **Data inputs** (`kind: data`) go inline as JSON (`RunSession.data`), never uploaded.
+  - `image.segment`'s `points` get a picker on the run's image: click to include, switch to exclude, click a point to
+    remove it. It writes Image §5's shape, `[{x, y, label}]`, normalized 0–1 from the top left.
+  - Any other data input is typed as JSON (MESFormsUI's `JSONEditor`).
 
 ## 5. Submitting
 
