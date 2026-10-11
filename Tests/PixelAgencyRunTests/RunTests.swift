@@ -121,6 +121,15 @@ struct RunWorkflowTests {
             let first = workflow.current
             workflow.again()
             #expect(workflow.current !== first && workflow.current?.data["points"] == points)
+
+            // A client offering only some profiles (Desktop: image) lists only their operations.
+            let entry = try await directory.add(url: URL(string: "http://127.0.0.1:\(port)/mes/v0")!)
+            workflow.profiles = ["image"]
+            await workflow.select(entry)
+            #expect(workflow.operations.count == 13)
+            workflow.profiles = ["video"]
+            await workflow.select(entry)
+            #expect(workflow.operations.isEmpty && workflow.current == nil)
         }
     }
 

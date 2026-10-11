@@ -26,6 +26,9 @@ public final class RunWorkflow {
 
     /// New runs start with "commercial-use models only" on or off (LITE-9; off by default in Lite, OQ-3).
     public var commercialOnlyByDefault = false
+    /// The MES profiles whose operations this client offers; nil offers every profile (Lite). Desktop sets
+    /// `["image"]`: it's an image product, and video is a separate app.
+    public var profiles: Set<String>?
 
     private var connection: (any EngineConnection)?
     /// Where new runs execute; nil runs them in their session (Lite). Desktop sets its ticket executor.
@@ -57,7 +60,7 @@ public final class RunWorkflow {
         do {
             let connection = try await directory.connect(entry)
             let info = try await connection.engineInfo()
-            let ops = try await connection.operations().operations
+            let ops = try await connection.operations().operations.filter { profiles?.contains($0.profile) ?? true }
             self.connection = connection
             self.info = info
             operations = ops.sorted { ($0.profile, $0.title) < ($1.profile, $1.title) }
