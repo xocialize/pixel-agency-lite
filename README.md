@@ -33,7 +33,7 @@ control it shows comes from the engine's own descriptors.
 
 ## Embedding the run workflow
 
-Pixel Agency Desktop embeds these packages (LITE-16). Three hooks make that possible without forking them:
+Pixel Agency Desktop embeds these packages (LITE-16). Four hooks make that possible without forking them:
 
 - **An engine inside the app.** `EngineDirectory.addLocal(_:)` lists an in-process engine (MESInProcess) first, and
   connects to it without the network. Desktop's built-in engine is one; Lite has none.
@@ -44,6 +44,9 @@ Pixel Agency Desktop embeds these packages (LITE-16). Three hooks make that poss
 - **The views in pieces.** `RunEngineList`, `RunOperationList`, `RunSessionList`, `RunWorkflowCanvas`,
   `RunWorkflowInspector` and `runWorkflowPairing(_:)` let an app compose the workflow into its own window.
   `RunWorkflowView` is Lite's arrangement of them.
+- **An allow-list.** `EngineDirectory.admits` decides which engines the app may use. A refused engine leaves
+  `entries` for `refused`, and `connect` and pairing refuse it. The engine list says how many are hidden. Lite admits
+  every engine; Desktop narrows it to an administrator's list (managed settings).
 
 `RunWorkflow.useAsInput(_:)` also takes a plain `MediaItem`, so an app can put its own files into a run.
 

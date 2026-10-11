@@ -410,3 +410,23 @@ extension RunWorkflowTests {
         }
     }
 }
+
+extension RunWorkflowTests {
+    @Test("An allow-list: a refused engine leaves the list and can't be connected to; widening it brings it back")
+    func admits() async throws {
+        let defaults = UserDefaults(suiteName: "lite-admits-\(UUID().uuidString)")!
+        let directory = EngineDirectory(credentials: MemoryCredentialStore(), clientName: "tests", defaults: defaults)
+        let local = try await InProcessEngine.start(engine: MockImageEngine(), configuration: engineConfig { $0.name = "Built-in" })
+        let entry = try await directory.addLocal(local)
+        #expect(directory.entries.map(\.id) == [entry.id] && directory.refused.isEmpty)
+
+        directory.admits = { $0.id != entry.id }                         // an administrator's list without it
+        #expect(directory.entries.isEmpty && directory.refused.map(\.id) == [entry.id])
+        await #expect(throws: MESClientError.self) { _ = try await directory.connect(entry) }
+
+        directory.admits = { _ in true }
+        #expect(directory.entries.map(\.id) == [entry.id] && directory.refused.isEmpty)
+        _ = try await directory.connect(entry)
+        await local.stop()
+    }
+}

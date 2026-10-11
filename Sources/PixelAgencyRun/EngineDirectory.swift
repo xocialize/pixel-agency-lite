@@ -40,7 +40,15 @@ public struct EngineEntry: Identifiable, Sendable, Hashable {
 /// them, pairs with them, and keeps pairings in a `CredentialStore`.
 @MainActor @Observable
 public final class EngineDirectory {
+    /// The engines this client may use, in list order.
     public private(set) var entries: [EngineEntry] = []
+    /// Engines known but not admitted (an administrator's allow-list in Pixel Agency Desktop), so a window can say so.
+    public private(set) var refused: [EngineEntry] = []
+    /// Which engines this client may use. Lite admits every engine; Desktop narrows it to a managed allow-list
+    /// (Desktop-PRD BIZ-10). A refused engine isn't in `entries`, so nothing lists, routes to or connects to it.
+    public var admits: (EngineEntry) -> Bool = { _ in true } {
+        didSet { rebuild() }
+    }
     /// Engines added by address, kept across launches.
     public private(set) var addedURLs: [URL]
     let credentials: CredentialStore
@@ -94,7 +102,7 @@ public final class EngineDirectory {
             defaults.set(addedURLs.map(\.absoluteString), forKey: Self.addedKey)
         }
         rebuild()
-        return entries.first { $0.id == info.id }!
+        return (entries + refused).first { $0.id == info.id }!
     }
 
     /// Lists an engine that runs inside this app (MESInProcess: Pixel Agency Desktop's built-in engine, RUN-9). It
@@ -104,7 +112,7 @@ public final class EngineDirectory {
         let info = try await connection.engineInfo()
         local[info.id] = (connection, info)
         rebuild()
-        return entries.first { $0.id == info.id }!
+        return (entries + refused).first { $0.id == info.id }!
     }
 
     /// Takes a built-in engine off the list (it is stopping).
@@ -129,6 +137,7 @@ public final class EngineDirectory {
     /// A connection to `entry`: the engine itself when it runs in this app; otherwise resolving a discovered engine's
     /// address, and using its pairing when paired.
     public func connect(_ entry: EngineEntry) async throws -> any EngineConnection {
+        guard admits(entry) else { throw MESClientError.unexpected("\(entry.name) isn't allowed on this Mac.") }
         if let builtIn = local[entry.id] { return builtIn.connection }
         let url = try await address(of: entry)
         if let paired = credentials.pairings().first(where: { $0.engineID == entry.id }) {
@@ -144,7 +153,8 @@ public final class EngineDirectory {
 
     /// Starts pairing (Base §5 steps 1–4): the returned `Pairing` carries the code to show.
     public func beginPairing(_ entry: EngineEntry) async throws -> Pairing {
-        try await Pairing.begin(baseURL: try await address(of: entry), identity: try credentials.identity(name: clientName))
+        guard admits(entry) else { throw MESClientError.unexpected("\(entry.name) isn't allowed on this Mac.") }
+        return try await Pairing.begin(baseURL: try await address(of: entry), identity: try credentials.identity(name: clientName))
     }
 
     /// Waits up to `wait` seconds for the engine's operator (step 5). On approval the pairing is saved; returns whether
@@ -212,10 +222,12 @@ public final class EngineDirectory {
             // A paired engine not currently discovered is reached at its last known address.
             if byID[p.engineID]?.url == nil && byID[p.engineID]?.discovered == nil { byID[p.engineID]?.url = p.baseURL }
         }
-        entries = order.compactMap { byID[$0] }.sorted { a, b in
+        let all = order.compactMap { byID[$0] }.sorted { a, b in
             if a.isBuiltIn != b.isBuiltIn { return a.isBuiltIn }
             if a.isPaired != b.isPaired { return a.isPaired }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
+        entries = all.filter(admits)
+        refused = all.filter { !admits($0) }
     }
 }

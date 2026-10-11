@@ -114,6 +114,12 @@ public struct RunEngineList: View {
                     if !entry.isBuiltIn { Button("Forget") { Task { await workflow.directory.forget(entry) } } }
                 }
             }
+            if !workflow.directory.refused.isEmpty {
+                let count = workflow.directory.refused.count
+                Label("\(count) more engine\(count == 1 ? "" : "s") not allowed on this Mac", systemImage: "lock")
+                    .font(Tokens.Font.caption).foregroundStyle(Tokens.Color.tertiaryLabel)
+                    .help(workflow.directory.refused.map(\.name).joined(separator: ", ") + ". An administrator chose which engines this Mac may use.")
+            }
         }
         .sheet(isPresented: $addingEngine) { AddEngineSheet(workflow: workflow, isPresented: $addingEngine) }
     }
