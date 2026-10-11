@@ -35,12 +35,16 @@ public struct KeychainCredentialStore: CredentialStore {
         return identity
     }
 
+    /// Lists the accounts, then reads each item: the file-based keychain (every Mac process that doesn't opt into the
+    /// data protection keychain, sandboxed or not) refuses data for several items in one query with `errSecParam`.
     public func pairings() -> [PairedEngine] {
-        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: "\(prefix).pairing",
-                                      kSecMatchLimit: kSecMatchLimitAll, kSecReturnData: true, kSecReturnAttributes: true]
+        let service = "\(prefix).pairing"
+        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
+                                      kSecMatchLimit: kSecMatchLimitAll, kSecReturnAttributes: true]
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let items = result as? [[CFString: Any]] else { return [] }
-        return items.compactMap { ($0[kSecValueData] as? Data).flatMap { try? MESJSON.decoder.decode(PairedEngine.self, from: $0) } }
+        return items.compactMap { $0[kSecAttrAccount] as? String }
+            .compactMap { read(service: service, account: $0).flatMap { try? MESJSON.decoder.decode(PairedEngine.self, from: $0) } }
     }
 
     public func save(_ engine: PairedEngine) throws {
