@@ -5,11 +5,14 @@ drop in an image, run it, and save the result. Lite is the reference client of t
 [Media Engine Specification (MES)](https://github.com/xocialize/media-engine-spec): everything it does goes through the open MES SDKs, and every
 control it shows comes from the engine's own descriptors.
 
-> **The run workflow has moved.** `PixelAgencyRun` and `PixelAgencyRunUI` now live in
-> [pixel-agency-run](https://github.com/xocialize/pixel-agency-run) (from v0.1.0, the code of Lite v0.4.2), which Pixel
-> Agency Desktop and Gaea Lab link (Gaea G-20, AB-T-0360). Lite is deprecated: Gaea Lab is the MES reference client
-> (G-14). This repo and its tags stay resolvable for builds that still depend on them; new work goes to
-> pixel-agency-run.
+> **Deprecated (2026-10-29): this repo is archived.** Use
+> [Gaea Lab](https://github.com/xocialize-code/gaea/tree/main/Apps/GaeaLab) instead: it is the MES reference client
+> and the client MES's client conformance suite runs against (Gaea G-14, AB-D-0176; 11/11, AB-R-0655). Lite's run
+> workflow, `PixelAgencyRun` and `PixelAgencyRunUI`, lives in
+> [pixel-agency-run](https://github.com/xocialize/pixel-agency-run) (from v0.1.0, the code of Lite v0.4.2), which Gaea
+> Lab and Pixel Agency Desktop link (G-20, AB-T-0360). Lite was never on the Mac App Store (AB-T-0361), so there is no
+> store listing to sunset. The archived repo and its tags stay resolvable for builds that still depend on them; new
+> work goes to pixel-agency-run or Gaea Lab.
 
 > **Status: L2 complete** (Lite-PRD §9).
 > - **L1:** with only the MES mock engine, every Image operation runs end to end from Lite, and its controls come
