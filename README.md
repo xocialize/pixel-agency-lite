@@ -5,6 +5,12 @@ drop in an image, run it, and save the result. Lite is the reference client of t
 [Media Engine Specification (MES)](https://github.com/xocialize/media-engine-spec): everything it does goes through the open MES SDKs, and every
 control it shows comes from the engine's own descriptors.
 
+> **The run workflow has moved.** `PixelAgencyRun` and `PixelAgencyRunUI` now live in
+> [pixel-agency-run](https://github.com/xocialize/pixel-agency-run) (from v0.1.0, the code of Lite v0.4.2), which Pixel
+> Agency Desktop and Gaea Lab link (Gaea G-20, AB-T-0360). Lite is deprecated: Gaea Lab is the MES reference client
+> (G-14). This repo and its tags stay resolvable for builds that still depend on them; new work goes to
+> pixel-agency-run.
+
 > **Status: L2 complete** (Lite-PRD §9).
 > - **L1:** with only the MES mock engine, every Image operation runs end to end from Lite, and its controls come
 >   entirely from descriptors. Lite passes the MES client conformance suite through `lite-run`, the same workflow
